@@ -91,14 +91,18 @@ def daterange(start_date, end_date):
         yield start_date + timedelta(n)
 
 def main():
-    start_str = "2025-11-03"
-    end_str = "2025-11-19"
-    start_date = datetime.strptime(start_str, "%Y-%m-%d")
-    end_date = datetime.strptime(end_str, "%Y-%m-%d")
+    # List of dates to process
+    date_list = [
+        "2025-11-03","2025-11-04",
+        "2025-11-05","2025-11-06",
+        "2025-11-07",
+        "2025-11-10","2025-11-11","2025-11-12","2025-11-13","2025-11-14",
+        "2025-11-17","2025-11-18",
+        "2025-11-19"
+    ]
 
     with engine.connect() as conn:
-        for single_date in daterange(start_date, end_date):
-            date_str = single_date.strftime("%Y-%m-%d")
+        for date_str in date_list:
             result = conn.execute(text(SQL_QUERY), {"data_inicio": date_str})
             columns = result.keys()
             rows = result.fetchall()
