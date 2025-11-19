@@ -1,10 +1,8 @@
 from sqlalchemy import create_engine, text
 from openpyxl import Workbook
+from config_database import get_redshift_connection_string
 
-# --- CONFIGURE YOUR DATABASE CONNECTION HERE ---
-# Example for PostgreSQL:
-# engine = create_engine('postgresql://user:password@host:port/database')
-engine = create_engine('sqlite:///example.db')  # Placeholder, replace with your DB
+engine = create_engine(get_redshift_connection_string())  # Uses Redshift config
 
 # --- SQL QUERY WITH PARAMETER ---
 SQL_QUERY = """
@@ -86,9 +84,6 @@ ORDER BY pag.pag_dd_pagamento;
 
 from datetime import datetime, timedelta
 
-def daterange(start_date, end_date):
-    for n in range(int((end_date - start_date).days) + 1):
-        yield start_date + timedelta(n)
 
 def main():
     # List of dates to process
@@ -108,7 +103,8 @@ def main():
             rows = result.fetchall()
 
             wb = Workbook()
-            ws = wb.active
+            ws = wb.create_sheet(title="Results")
+            wb.remove(wb["Sheet"])
             ws.append(list(columns))
             for row in rows:
                 ws.append(list(row))
