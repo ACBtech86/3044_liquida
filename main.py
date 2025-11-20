@@ -32,8 +32,12 @@ def main():
     for date_str in date_list:
         with conn.cursor() as cur:
             cur.execute(SQL_QUERY, (date_str, date_str))
-            columns = [desc[0] for desc in cur.description]
-            rows = cur.fetchall()
+            if cur.description is not None:
+                columns = [desc[0] for desc in cur.description]
+                rows = cur.fetchall()
+            else:
+                columns = []
+                rows = []
 
             wb = Workbook()
             ws = wb.create_sheet(title="Results")
