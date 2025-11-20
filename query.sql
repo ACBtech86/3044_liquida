@@ -68,5 +68,5 @@ WHERE con.con_tx_fundo_nome IN (
       'MÉLIUZ FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS',
       'VLTZ I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS NÃO PADRONIZADO',
       'PLGN FORNECEDORES FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS'
-  )
+  ) and (mtr.total_valor_presente <> 0 and pag.pag_vl_pago <> 0)
 ORDER BY pag.pag_dd_pagamento;
