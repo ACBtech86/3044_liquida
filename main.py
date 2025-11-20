@@ -1,86 +1,12 @@
-from sqlalchemy import create_engine, text
+import psycopg2
 from openpyxl import Workbook
-from config_database import get_redshift_connection_string
+from config_database import REDSHIFT_CONFIG
 
-engine = create_engine(get_redshift_connection_string())  # Uses Redshift config
+def read_query_file(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read()
 
-# --- SQL QUERY WITH PARAMETER ---
-SQL_QUERY = """
-WITH pagamentos_filtrados AS (
-    SELECT 
-        pag_pk_pagamento,
-        pag_fk_parcela,
-        pag_dd_pagamento,
-        pag_vl_pago,
-        pag_tx_pagamento_tipo
-    FROM credit_portfolio.pagamento
-    WHERE pag_dd_pagamento = :data_inicio
-),
-metrica_agregada AS (
-    SELECT 
-        mtr_fk_contrato,
-        SUM(mtr_VL_presente) as total_valor_presente
-    FROM credit_portfolio.metrica
-    WHERE mtr_dd_data = :data_inicio
-    GROUP BY mtr_fk_contrato
-),
-cedentes AS (
-    SELECT DISTINCT 
-        pte_nr_cpf_cnpj,
-        pte_tx_nome
-    FROM credit_portfolio.participante
-    WHERE left(pte_pk_participante,3) = 'ced'
-),
-sacados AS (
-    SELECT DISTINCT 
-        pte_nr_cpf_cnpj,
-        pte_tx_nome
-    FROM credit_portfolio.participante
-    WHERE left(pte_pk_participante,3) = 'sac'
-)
-SELECT con.con_tx_fundo_nome as fundo_nome,
-       con.con_nr_fundo_cnpj as fundo_cnpj,
-       pag.pag_dd_pagamento,
-       ced.pte_tx_nome as cedente_nome,
-       con.con_nr_cedente_cpf_cnpj as cedente_numero_documento,
-       sac.pte_tx_nome as sacado_nome,
-       con.con_nr_sacado_cpf_cnpj as sacado_numero_documento,
-       con.con_vl_taxa_pre,
-       con.con_dd_aquisicao as contrato_data_cessao,
-       par.par_dd_vencimento_ajustado as parcela_data_vencimento_ajustada,
-       par.par_vl_aquisicao,
-       par.par_vl_nominal_original,
-       con.con_tx_produto_nome as produto_nome,
-       con.con_tx_recebivel_tipo as contrato_tipo_recebivel,
-       con.con_nr_coobrigacao,
-       con.con_pk_contrato as __Contrato__,
-       par.par_pk_parcela as __Parcela__,
-       par.par_nr_parcela as Nr_Parcela,
-       pag.pag_vl_pago as pag_vl_pago,
-       pag.pag_tx_pagamento_tipo,
-       mtr.total_valor_presente
-FROM pagamentos_filtrados as pag
-INNER JOIN credit_portfolio.parcela as par 
-    ON pag.pag_fk_parcela = par.par_pk_parcela
-INNER JOIN credit_portfolio.contrato as con 
-    ON par.par_fk_contrato = con.con_pk_contrato
-LEFT JOIN metrica_agregada mtr 
-    ON con.con_pk_contrato = mtr.mtr_fk_contrato
-LEFT JOIN cedentes ced
-    ON con.con_nr_cedente_cpf_cnpj = ced.pte_nr_cpf_cnpj
-LEFT JOIN sacados sac
-    ON con.con_nr_sacado_cpf_cnpj = sac.pte_nr_cpf_cnpj
-WHERE con.con_tx_fundo_nome IN (
-      'VECTOR EDGE FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS',
-      'MERCADO CRÉDITO FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS NÃO PADRONIZADO',
-      'MÉLIUZ FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS',
-      'VLTZ I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS NÃO PADRONIZADO',
-      'PLGN FORNECEDORES FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS'
-  )
-ORDER BY pag.pag_dd_pagamento;
-"""
-
-
+SQL_QUERY = read_query_file('query.sql')
 
 from datetime import datetime, timedelta
 
@@ -96,11 +22,18 @@ def main():
         "2025-11-19"
     ]
 
-    with engine.connect() as conn:
-        for date_str in date_list:
-            result = conn.execute(text(SQL_QUERY), {"data_inicio": date_str})
-            columns = result.keys()
-            rows = result.fetchall()
+    conn = psycopg2.connect(
+        dbname=REDSHIFT_CONFIG["database"],
+        user=REDSHIFT_CONFIG["user"],
+        password=REDSHIFT_CONFIG["password"],
+        host=REDSHIFT_CONFIG["host"],
+        port=REDSHIFT_CONFIG["port"]
+    )
+    for date_str in date_list:
+        with conn.cursor() as cur:
+            cur.execute(SQL_QUERY, (date_str, date_str))
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
             wb = Workbook()
             ws = wb.create_sheet(title="Results")
