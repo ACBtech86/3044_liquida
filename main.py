@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 def main():
     # List of dates to process
     date_list = [
-       '2025-11-18', '2025-11-19',  '2025-11-20', '2025-11-21', '2025-11-24', '2025-11-25'  ]
+        '2025-11-19',   '2025-11-21', '2025-11-24', '2025-11-25'  ]
 
     conn = psycopg2.connect(
         dbname=REDSHIFT_CONFIG["database"],
